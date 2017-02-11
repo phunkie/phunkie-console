@@ -3,8 +3,6 @@
 namespace PhunkieConsole\Parser;
 
 use Phunkie\Cats\State;
-use function Phunkie\Functions\currying\curry;
-use function Phunkie\Functions\function1\compose;
 use function PhunkieConsole\IO\Lens\parserLens;
 use PhunkieConsole\Parser\Adapter\PhpParser\ParserAdapter;
 use PhpParser\Lexer\Emulative;

@@ -4,12 +4,9 @@ namespace PhunkieConsole\Repl;
 
 use ErrorException;
 use function Phunkie\Functions\immlist\concat;
-use function Phunkie\Functions\lens\makeLenses;
-use PhunkieConsole\Block\BlockLine;
 use function PhunkieConsole\Command\Command;
 use function PhunkieConsole\Command\isCommand;
 use function PhunkieConsole\IO\Lens\getBlock;
-use function PhunkieConsole\IO\Lens\getBlockAsString;
 use function PhunkieConsole\IO\Lens\updateBlock;
 use function PhunkieConsole\IO\Lens\updatePrompt;
 use PhunkieConsole\Result\NoResult;
