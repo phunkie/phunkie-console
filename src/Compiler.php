@@ -8,6 +8,7 @@ use function Phunkie\PatternMatching\Referenced\ListWithTail;
 use function Phunkie\PatternMatching\Referenced\ListNoTail;
 use Phunkie\Types\ImmMap;
 use Phunkie\Types\Pair;
+use Phunkie\Types\Unit;
 use function PhunkieConsole\IO\Lens\getVariableValue;
 use function PhunkieConsole\IO\Lens\updateVariable;
 use function PhunkieConsole\IO\Lens\variableLens;
@@ -97,9 +98,11 @@ function doCompile($state, $nodes, $code): Pair
             // Method call
             case $node instanceof MethodCall:
                 $methodCallResult = methodCall($state, $code, $node);
-
-                $varName = generateVarName($state);
-                $state = updateVariable($varName, $methodCallResult)->run($state);
+                $varName = '';
+                if (!$methodCallResult instanceof Unit) {
+                    $varName = generateVarName($state);
+                    $state = updateVariable($varName, $methodCallResult)->run($state);
+                }
                 $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $methodCallResult))));
                 break;
 
@@ -119,9 +122,12 @@ function doCompile($state, $nodes, $code): Pair
 
             // Property fetch
             case $node instanceof PropertyFetch:
-                $varName = generateVarName($state);
                 $funcCallResult = propertyFetch($state, $code, $node);
-                $state = updateVariable($varName, $funcCallResult)->run($state);
+                $varName = '';
+                if (!$funcCallResult instanceof Unit) {
+                    $varName = generateVarName($state);
+                    $state = updateVariable($varName, $funcCallResult)->run($state);
+                }
                 $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
                 break;
 
@@ -134,9 +140,12 @@ function doCompile($state, $nodes, $code): Pair
                 break;
 
             default:
-                $varName = generateVarName($state);
                 $value = value($state, $node, $code);
-                $state = updateVariable($varName, $value)->run($state);
+                $varName = '';
+                if (!$value instanceof Unit) {
+                    $varName = generateVarName($state);
+                    $state = updateVariable($varName, $value)->run($state);
+                }
                 $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $value))));
                 break;
         }
