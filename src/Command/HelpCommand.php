@@ -23,6 +23,7 @@ class HelpCommand
             "  :help, :h, :?               displays this list of commands\n".
             "  :exit                       exits the application\n".
             "  :type <expr>, :t            display the type of an expression\n".
-            "  :kind <type>, :k            display the kind of a type\n")))));
+            "  :kind <type>, :k            display the kind of a type\n" .
+            "  :load <file>, :l            loads a php file\n")))));
     }
 }
