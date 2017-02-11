@@ -36,12 +36,9 @@ function stripString($code)
     return ImmList(...str_split($code))->foldLeft($acc, function($acc, $char) {
         $changeStartedFlag = ($char === "'" || $char === '"') && $acc["lastChar"]->getOrElse('') !== "\\";
 
-        $started = $changeStartedFlag ? !$acc["started"]->get() : $acc["started"]->get();
-        $stripped = !$changeStartedFlag && !$started ? $acc["stripped"]->get() . $char : $acc["stripped"]->get();
-
         return ImmMap([
-            "started" => $started,
-            "stripped" => $stripped,
+            "started" => $started = $changeStartedFlag ? !$acc["started"]->get() : $acc["started"]->get(),
+            "stripped" => !$changeStartedFlag && !$started ? $acc["stripped"]->get() . $char : $acc["stripped"]->get(),
             "lastChar" => $char
         ]);
     })["stripped"]->get();
