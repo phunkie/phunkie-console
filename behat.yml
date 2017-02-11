@@ -1,0 +1,9 @@
+default:
+  suites:
+    single_line:
+      contexts: [ SingleLineContext ]
+      filters:  { role: "single line runner"  }
+    repl:
+      contexts: [ ReplContext ]
+      filters:  { role: "Repl runner"  }
+

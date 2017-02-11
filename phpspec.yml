@@ -1,0 +1,9 @@
+suites:
+    default:
+        spec_path: .
+        spec_prefix: spec
+        src_path: src
+    integration:
+        spec_path: .
+        spec_prefix: features
+        src_path: src
