@@ -3,12 +3,10 @@
 namespace PhunkieConsole\Repl;
 
 use ErrorException;
-use function Phunkie\Functions\immlist\concat;
+use function PhunkieConsole\Block\Block;
+use function PhunkieConsole\Block\isBlock;
 use function PhunkieConsole\Command\Command;
 use function PhunkieConsole\Command\isCommand;
-use function PhunkieConsole\IO\Lens\getBlock;
-use function PhunkieConsole\IO\Lens\updateBlock;
-use function PhunkieConsole\IO\Lens\updatePrompt;
 use PhunkieConsole\Result\NoResult;
 use PhunkieConsole\Result\Result;
 
@@ -59,14 +57,7 @@ function evaluate($input): State
     return new State(function($state) use ($input) {
         try { switch(true) {
             case isCommand($input) : return Command($input)->run($state);
-            case isBlock($input, $state) :
-                $state = updateBlock($state, concat(getBlock($state), ImmList($input)));
-                $blockAsString = getBlock($state)->mkString("\n");
-                if (blockStarted($blockAsString)) {
-                    return Pair(updatePrompt($state, getBlockType($blockAsString)), Nel(Success(new NoResult(""))));
-                } else {
-                    return parse(getBlock($state)->mkString(" "))->flatMap(compile)->run(updatePrompt(updateBlock($state, Nil()), ">"));
-                }
+            case isBlock($input, $state) : return Block($input)->run($state);
             default :return parse($input)->flatMap(compile)->run($state); }
         } catch (\Throwable $e) {
             return Pair($state, Nel(Failure($e)));
