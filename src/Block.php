@@ -6,7 +6,7 @@ use function Phunkie\Functions\lens\makeLenses;
 
 function isBlock(string $code, $state)
 {
-    return blockStarted($code) || !makeLenses('block')->block->get($state)->isEmpty();
+    return blockStarted($code) || !makeLenses('block')->block->get($state)->get()->isEmpty();
 }
 
 function blockStarted(string $code)
