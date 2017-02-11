@@ -2,6 +2,7 @@
 
 namespace PhunkieConsole\PhpCompiler;
 
+use PhpParser\Node\Expr\ArrayDimFetch;
 use Phunkie\Cats\State;
 use function Phunkie\Functions\immlist\concat;
 use function Phunkie\PatternMatching\Referenced\ListWithTail;
@@ -260,8 +261,10 @@ function name($node, $var = '$')
 {
     switch(get_class($node))
     {
-        case PropertyFetch::class:
+        case PropertyFetch::class :
             return $var . name($node->var, "") . $node->name;
+        case ArrayDimFetch::class :
+            return name($node->var, "") . '[' . $node->dim->value . ']';
         default:
             return $node->name;
     }

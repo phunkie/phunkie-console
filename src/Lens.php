@@ -81,6 +81,17 @@ function updateVariable($var, $value)
 {
     return Function1(function($state) use ($var, $value) {
         $variables = variableLens()->get($state);
+
+        if (strpos($var, "[") !== false) {
+            $key = substr($var, 0, strpos($var, "["));
+            if ($variables->contains($key)) {
+                $oldValue = $variables[$key]->get();
+                eval('$oldValue' . substr($var, strpos($var, "["), strlen($var) - strpos($var, "[")) . ' = ' . $value . ';');
+                $value = $oldValue;
+                $var = $key;
+            }
+        }
+
         $variables = member($var)->set($variables, Some($value));
         return variableLens()->set($state, Some($variables));
     });
