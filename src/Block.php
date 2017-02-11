@@ -21,8 +21,20 @@ function checkBlockOccurrences($countOccurrences): bool
 
 function getBlockType($code)
 {
+    $countOccurrences = (curry('substr_count'))($code);
     $code = (compose("stripStringHex", "stripString"))($code);
-    return strrpos($code, "{") > strrpos($code, "(") ? "{" : "(";
+
+    if ($countOccurrences("{") > $countOccurrences("}")) {
+        if ($countOccurrences("(") > $countOccurrences(")")) {
+            return strrpos($code, "{") > strrpos($code, "(") ? "{" : "(";
+        }
+        return "{";
+    } else {
+        if ($countOccurrences("(") > $countOccurrences(")")) {
+            return "(";
+        }
+    }
+    return ">";
 }
 
 function stripString($code)
