@@ -28,5 +28,5 @@
   "config": {
     "bin-dir": "bin"
   },
-  "bin": ["bin/phunkie-console"]
+  "bin": ["bin/phunkie"]
 }
