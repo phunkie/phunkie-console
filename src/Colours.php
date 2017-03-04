@@ -12,7 +12,7 @@ function colours()
         "boldRed" => function($message) use (&$colours) { return $colours['bold']($colours['red']($message)); },
         "red" => function($message) { return "\e[31m$message\e[0m"; },
         "blue" => function($message) { return "\e[34m$message\e[0m"; },
-        "bold" => function($message) { return "\e[1m$message\e[21m"; },
+        "bold" => function($message) { return "\e[1m$message\e[0m"; },
         "cyan" => function($message) { return "\e[36m$message\e[0m"; },
         "green" => function($message) { return "\e[32m$message\e[0m"; },
         "magenta" => function($message) { return "\e[35m$message\e[0m"; },
