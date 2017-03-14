@@ -32,7 +32,7 @@ function run($argc, $argv, $state) { switch (mode($argc, $argv))
 {
     case Interactive: welcome(config($state, "formatter")->getOrElse(colours)); repl($state); break;
     case Help: help(); break;
-    case File: fromFile($argv[$argc - 1], $state); break;
+    case File: fromFile($argv[$argc - 1]); break;
     case SingleLine: evaluate(getopt("r:")["r"])->flatMap(andPrint)->run($state); break; }
 }
 
@@ -59,8 +59,9 @@ function help()
     ))->run();
 }
 
-function fromFile($file, $state)
+function fromFile($file)
 {
     require_once $file;
+
     echo "\n";
 }
