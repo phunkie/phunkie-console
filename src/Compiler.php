@@ -252,6 +252,9 @@ function methodCall($state, $code, $statement)
         case $statement->var instanceof MethodCall:
             $caller = methodCall($state, $code, $statement->var);
             return $caller->{$statement->name}(...args($state, $statement->args, $code));
+        case $statement->var instanceof PropertyFetch:
+            $caller = propertyFetch($state, $code, $statement->var);
+            return $caller->{$statement->name}(...args($state, $statement->args, $code));
         default:
             throw new \RuntimeException("Unidentified caller: " . get_class($statement->var));
     }
