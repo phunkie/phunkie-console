@@ -1,7 +1,7 @@
 phunkie-console
 ===============
 
-phunkie-console is a a REPL to support your [Phunkie](https://github.com/MarcelloDuarte/phunkie) development
+phunkie-console is a a REPL to support your [Phunkie](https://github.com/phunkie/phunkie) development
 
 ```bash
 $ bin/phunkie-console
