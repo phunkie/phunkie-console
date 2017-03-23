@@ -3,6 +3,8 @@
 namespace PhunkieConsole\Repl;
 
 use ErrorException;
+use function Phunkie\Functions\monad\mcompose;
+use function Phunkie\Functions\state\gets;
 use function PhunkieConsole\Block\Block;
 use function PhunkieConsole\Block\isBlock;
 use function PhunkieConsole\Command\Command;
@@ -31,6 +33,7 @@ use function PhunkieConsole\IO\Colours\colours as format;
 
 use Throwable;
 
+const repl = "PhunkieConsole\\Repl\\repl";
 const read = "PhunkieConsole\\Repl\\read";
 const evaluate = "PhunkieConsole\\Repl\\evaluate";
 const andPrint = "PhunkieConsole\\Repl\\andPrint";
@@ -45,10 +48,11 @@ function repl($state)
             ->run($state);
 }
 
-function read(): State
+function read($s = None): State
 {
-    return new State(function($state) {
-        return Pair($state, ReadLine(promptLens()->get($state))->run());
+    return new State(function($state) use ($s) {
+        if ($s == None) $s = $state;
+        return Pair($s, ReadLine(promptLens()->get($s))->run());
     });
 }
 
@@ -74,9 +78,7 @@ function andPrint($result): State
 
 function loop(): State
 {
-    return new State(function($state) {
-        return Pair($state, repl($state));
-    });
+    return gets(repl);
 }
 
 function printResult($state, ImmList $resultList): Pair

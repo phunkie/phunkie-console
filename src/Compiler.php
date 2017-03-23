@@ -10,6 +10,9 @@ use function Phunkie\PatternMatching\Referenced\ListNoTail;
 use Phunkie\Types\ImmMap;
 use Phunkie\Types\Pair;
 use Phunkie\Types\Unit;
+use Phunkie\Utils\Trampoline\Done;
+use Phunkie\Utils\Trampoline\More;
+use Phunkie\Utils\Trampoline\Trampoline;
 use function PhunkieConsole\IO\Lens\getVariableValue;
 use function PhunkieConsole\IO\Lens\updateVariable;
 use function PhunkieConsole\IO\Lens\variableLens;
@@ -386,16 +389,22 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
 
 function generateVarName($state)
 {
-    $nextAvailable = function ($numbers) use (&$nextAvailable) { $on = match($numbers); switch(true) {
-        case $on(Nil): return 0;
-        case $on(ListNoTail($head, Nil)): return $head + 1;
-        case $on(ListWithTail($head, $tail)) && $head == ($tail->head - 1): return $nextAvailable($tail);
-        case $on(_): return $numbers->head + 1; }
+    $nextAvailable = function ($numbers) use (&$nextAvailable): Trampoline { $on = match($numbers); switch(true) {
+        case $on(Nil): return new Done(0);
+        case $on(ListNoTail($head, Nil)): return new Done($head + 1);
+        case $on(ListWithTail($head, $tail)) && $head == ($tail->head - 1):
+            return new More(function() use ($nextAvailable, $tail) { return $nextAvailable($tail); });
+        case $on(_): return new Done($numbers->head + 1); }
     };
-    return 'var' . $nextAvailable(ImmList(...variableLens()->get($state)->keys())
-        ->filter(function($varName) { return preg_match("/var(\d+)/", $varName); })
-        ->map(function($varName) { return (int) substr($varName, 3); })
+    $next = $nextAvailable(ImmList(...variableLens()->get($state)->keys())
+        ->filter(function ($varName) {
+            return preg_match("/var(\d+)/", $varName);
+        })
+        ->map(function ($varName) {
+            return (int)substr($varName, 3);
+        })
     );
+    return 'var' . $next->run();
 }
 
 function className($parts)
