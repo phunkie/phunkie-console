@@ -246,9 +246,6 @@ function propertyFetch($state, $code, $statement)
 function methodCall($state, $code, $statement)
 {
     switch(true) {
-        case $statement->var instanceof FuncCall:
-            $caller = funcCall($state, $statement->var, $code);
-            return $caller->{$statement->name}(...args($state, $statement->args, $code));
         case $statement->var instanceof Variable:
             $caller = variable($state, $statement->var);
             return $caller->_2->{$statement->name}(...args($state, $statement->args, $code));
@@ -259,7 +256,8 @@ function methodCall($state, $code, $statement)
             $caller = propertyFetch($state, $code, $statement->var);
             return $caller->{$statement->name}(...args($state, $statement->args, $code));
         default:
-            throw new \RuntimeException("Unidentified caller: " . get_class($statement->var));
+            $caller = value($state, $statement->var, $code);
+            return $caller->{$statement->name}(...args($state, $statement->args, $code));
     }
 }
 
@@ -316,6 +314,7 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
     unset($someLongAndReservedPhunkieConsoleKey, $someLongAndReservedPhunkieConsoleVal);
     $someLongAndReservedPhunkieConsoleClassesBefore = get_declared_classes();
 
+    ob_start();
     if ($someLongAndReservedPhunkieConsoleNode instanceof Expr) {
         eval("\$someLongAndReservedPhunkieConsoleLocalVariable = " .
             substr($someLongAndReservedPhunkieConsoleCode,
@@ -330,6 +329,14 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
                 $someLongAndReservedPhunkieConsoleNode->getAttribute("startFilePos") + 1) . ";"
         );
     }
+    if ($someLongAndReservedPhunkieConsoleBuffer = ob_get_contents()) {
+        $someLongAndReservedPhunkieConsoleResult = concat(
+            $someLongAndReservedPhunkieConsoleResult,
+            Success(new PrintableResult(Pair('echo', $someLongAndReservedPhunkieConsoleBuffer))));
+    }
+    unset($someLongAndReservedPhunkieConsoleBuffer);
+    ob_end_clean();
+
     $someLongAndReservedPhunkieConsoleVariablesAfter = get_defined_vars();
     $someLongAndReservedPhunkieConsoleFunctionsAfter = get_defined_functions()["user"];
     $someLongAndReservedPhunkieConsoleClassesAfter = get_declared_classes();
@@ -403,8 +410,8 @@ function generateVarName($state)
         ->map(function ($varName) {
             return (int)substr($varName, 3);
         })
-    );
-    return 'var' . $next->run();
+    )->run();
+    return 'var' . $next;
 }
 
 function className($parts)
