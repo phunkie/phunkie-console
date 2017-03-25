@@ -283,16 +283,26 @@ function variable($state, $node)
 
 function funcCall($state, FuncCall $node, $code)
 {
+    //deal with variadic arguments
+    $arguments = [];
+    foreach ($node->args as $argument) {
+        $xs = value($state, $argument->value, $code);
+        if (strpos(substr($code, $argument->getAttribute('startFilePos')), '...') === 0) {
+            $arguments = array_merge($arguments, $xs);
+        }
+        $arguments[] = $xs;
+    }
+
     if ($node->name instanceof Variable) {
         return call_user_func_array(getVariableValue($state, $node->name->name), array_map(function($e) use ($state, $code) {
-            return value($state, $e->value, $code);
-        }, $node->args));
+            return $e;
+        }, $arguments));
     }
     if (isset($node->name->parts)) {
         $functionName = "\\" . ltrim(implode("\\", $node->name->parts), "\\");
         return call_user_func_array($functionName, array_map(function ($e) use ($state, $code) {
-            return value($state, $e->value, $code);
-        }, $node->args));
+            return $e;
+        }, $arguments));
     } else {
         $someLongAndReservedPhunkieVar = null;
         eval('$someLongAndReservedPhunkieVar = ' . substr($code, $node->getAttribute("startFilePos"), $node->getAttribute("endFilePos")));
