@@ -5,10 +5,13 @@ namespace PhunkieConsole\Repl;
 use ErrorException;
 use function Phunkie\Functions\monad\mcompose;
 use function Phunkie\Functions\state\gets;
+use function Phunkie\Functions\tuple\assign;
 use function PhunkieConsole\Block\Block;
 use function PhunkieConsole\Block\isBlock;
 use function PhunkieConsole\Command\Command;
 use function PhunkieConsole\Command\isCommand;
+use function PhunkieConsole\IO\Lens\updateBlock;
+use function PhunkieConsole\IO\Lens\updatePrompt;
 use PhunkieConsole\Result\NoResult;
 use PhunkieConsole\Result\Result;
 
@@ -86,7 +89,7 @@ function printResult($state, ImmList $resultList): Pair
     /** @var Result $result */
     /** @var Throwable $e */
     $result = $e = null;
-    $resultList->map(function($resultToPrint) use ($state, $result, $e) {
+    $resultList->map(function($resultToPrint) use (&$state, $result, $e) {
         $on = match($resultToPrint);
         switch (true) {
             case $on(Valid($result)):
@@ -98,31 +101,33 @@ function printResult($state, ImmList $resultList): Pair
                 break;
             default:
                 $on(Invalid($e));
-                printError($e)->run();
+                (assign($state, $io))(printError($e, $state));
+                $io->run();
         }
     });
     return Pair($state, $state);
 }
 
-function printError(Throwable $e): IOUnit
+function printError(Throwable $e, $state): Pair
 {
+    $state = updatePrompt(updateBlock($state, Nil()), ">");
     if ($e instanceof ErrorException) {
         switch ($e->getSeverity()) {
             case E_USER_NOTICE:
             case E_NOTICE:
             case E_STRICT:
-                return PrintLn(format()['bold']("Notice") . ": " . format()['boldRed']($e->getMessage()));
+                return Pair($state, PrintLn(format()['bold']("Notice") . ": " . format()['boldRed']($e->getMessage())));
             case E_USER_WARNING:
             case E_WARNING:
-                return PrintLn(format()['bold']("Warning") . ": " . format()['boldRed']($e->getMessage()));
+                return Pair($state, PrintLn(format()['bold']("Warning") . ": " . format()['boldRed']($e->getMessage())));
             case E_USER_ERROR:
-                return PrintLn(format()['bold']("Fatal Error") . ": " . format()['boldRed']($e->getMessage()));
+                return Pair($state, PrintLn(format()['bold']("Fatal Error") . ": " . format()['boldRed']($e->getMessage())));
             case E_RECOVERABLE_ERROR:
-                return PrintLn(format()['bold']("Catchable") . ": " . format()['boldRed']($e->getMessage()));
+                return Pair($state, PrintLn(format()['bold']("Catchable") . ": " . format()['boldRed']($e->getMessage())));
             default:
-                return PrintLn(format()['bold']("Error") . ": " . format()['boldRed']($e->getMessage()));
+                return Pair($state, PrintLn(format()['bold']("Error") . ": " . format()['boldRed']($e->getMessage())));
         }
     }
 
-    return PrintLn(format()['bold'](get_class($e)) . ": " . format()['boldRed']($e->getMessage()));
+    return Pair ($state, PrintLn(format()['bold'](get_class($e)) . ": " . format()['boldRed']($e->getMessage())));
 }

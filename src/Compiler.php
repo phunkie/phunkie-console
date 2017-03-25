@@ -283,26 +283,16 @@ function variable($state, $node)
 
 function funcCall($state, FuncCall $node, $code)
 {
-    //deal with variadic arguments
-    $arguments = [];
-    foreach ($node->args as $argument) {
-        $xs = value($state, $argument->value, $code);
-        if (strpos(substr($code, $argument->getAttribute('startFilePos')), '...') === 0) {
-            $arguments = array_merge($arguments, $xs);
-        }
-        $arguments[] = $xs;
-    }
-
     if ($node->name instanceof Variable) {
         return call_user_func_array(getVariableValue($state, $node->name->name), array_map(function($e) use ($state, $code) {
             return $e;
-        }, $arguments));
+        }, args($state, $node->args, $code)));
     }
     if (isset($node->name->parts)) {
         $functionName = "\\" . ltrim(implode("\\", $node->name->parts), "\\");
         return call_user_func_array($functionName, array_map(function ($e) use ($state, $code) {
             return $e;
-        }, $arguments));
+        }, args($state, $node->args, $code)));
     } else {
         $someLongAndReservedPhunkieVar = null;
         eval('$someLongAndReservedPhunkieVar = ' . substr($code, $node->getAttribute("startFilePos"), $node->getAttribute("endFilePos")));
@@ -424,5 +414,15 @@ function className($parts)
 
 function args($state, $args, $code)
 {
-    return array_map(function ($arg) use ($state, $code) { return value($state, $arg->value, $code); }, $args);
+    $arguments = [];
+    foreach ($args as $argument) {
+        $xs = value($state, $argument->value, $code);
+        if (strpos(substr($code, $argument->getAttribute('startFilePos')), '...') === 0) {
+            $arguments = array_merge($arguments, $xs);
+            continue;
+        }
+        $arguments[] = $xs;
+    }
+
+    return $arguments;
 }
