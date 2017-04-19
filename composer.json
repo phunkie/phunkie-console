@@ -9,7 +9,7 @@
     }
   ],
   "require": {
-    "phunkie/phunkie": "dev-master",
+    "phunkie/phunkie": "~0.6",
     "nikic/php-parser": "~2.1"
   },
   "require-dev": {
