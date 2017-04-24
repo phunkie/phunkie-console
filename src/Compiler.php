@@ -135,6 +135,21 @@ function doCompile($state, $nodes, $code): Pair
                 $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
                 break;
 
+            //Constant
+            case $node instanceof ConstFetch:
+                $constant = null;
+                switch(true) {
+                    case $node->name->parts[0] === "true": $constant = true; break;
+                    case $node->name->parts[0] === "false": $constant = false; break;
+                    case $node->name->parts[0] === "null": $constant = null; break;
+                    case !defined($node->name->parts[0]):
+                        trigger_error("Use of undefined constant {$node->name->parts[0]}", E_USER_NOTICE);
+                        $constant = $node->name->parts[0]; break;
+                    default: $constant = constant($node->name->parts[0]);
+                }
+                $result = concat($result, Success(new VariableAssignmentResult(Pair(generateVarName($state), $constant))));
+                break;
+
             // Stmt
             case $node instanceof Stmt:
             case $node instanceof Expr && !nodeIsNull($node):
@@ -169,11 +184,13 @@ function value($state, $node, $code)
             return funcCall($state, $node, $code);
 
         case $node instanceof ConstFetch:
-            switch($node->name->parts[0]) {
-                case "true": return true;
-                case "false": return false;
-                case "null": return null;
-                case !defined($node->name->parts[0]): return $node->name->parts[0];
+            switch(true) {
+                case $node->name->parts[0] === "true": return true;
+                case $node->name->parts[0] === "false": return false;
+                case $node->name->parts[0] === "null": return null;
+                case !defined($node->name->parts[0]):
+                    trigger_error("Use of undefined constant {$node->name->parts[0]}", E_NOTICE);
+                    return $node->name->parts[0];
                 default: return eval("return {$node->name->parts[0]};");
             }
             break;
