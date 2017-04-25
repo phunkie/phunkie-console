@@ -121,13 +121,15 @@ function printError(Throwable $e, $state): Pair
             case E_WARNING:
                 return Pair($state, PrintLn(format()['bold']("Warning") . ": " . format()['boldRed']($e->getMessage())));
             case E_USER_ERROR:
-                return Pair($state, PrintLn(format()['bold']("Fatal Error") . ": " . format()['boldRed']($e->getMessage())));
+                return Pair($state, PrintLn(format()['bold']("Fatal error") . ": " . format()['boldRed']($e->getMessage())));
             case E_RECOVERABLE_ERROR:
                 return Pair($state, PrintLn(format()['bold']("Catchable") . ": " . format()['boldRed']($e->getMessage())));
             default:
                 return Pair($state, PrintLn(format()['bold']("Error") . ": " . format()['boldRed']($e->getMessage())));
         }
     }
-
+    if ($e instanceof \PhpParser\Error) {
+        return Pair ($state, PrintLn(format()['bold']("Parse error") . ": " . format()['boldRed']($e->getMessage())));
+    }
     return Pair ($state, PrintLn(format()['bold'](get_class($e)) . ": " . format()['boldRed']($e->getMessage())));
 }

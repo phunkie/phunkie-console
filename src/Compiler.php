@@ -85,6 +85,16 @@ function doCompile($state, $nodes, $code): Pair
                     value($state, $node->args[0]->value, $code)))));
                 break;
 
+            case $node instanceof FuncCall:
+                $funcCallResult = funcCall($state, $node, $code);
+                $varName = '';
+                if (!$funcCallResult instanceof Unit) {
+                    $varName = generateVarName($state);
+                    $state = updateVariable($varName, $funcCallResult)->run($state);
+                }
+                $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
+                break;
+
             // Assignment
             case $node instanceof Assign:
                 $state = updateVariable(name($node->var), value($state, $node->expr, $code))->run($state);
@@ -112,6 +122,9 @@ function doCompile($state, $nodes, $code): Pair
 
             // Class declaration
             case $node instanceof Class_:
+                if (class_exists($node->name)) {
+                    trigger_error("Cannot declare class {$node->name}, because the name is already in use in console", E_USER_ERROR);
+                }
                 eval(substr($code, $node->getAttribute("startFilePos"),
                     $node->getAttribute("endFilePos") - 5));
                 $result = concat($result, Success(new ClassDeclarationResult($node->name)));
@@ -119,6 +132,9 @@ function doCompile($state, $nodes, $code): Pair
 
             // Function declaration
             case $node instanceof Function_:
+                if (function_exists($node->name)) {
+                    trigger_error("Cannot redeclare " . ltrim($node->name,"\\") . "() (previously declared in console)", E_USER_ERROR);
+                }
                 eval(substr($code, $node->getAttribute("startFilePos"),
                     $node->getAttribute("endFilePos") + 1));
                 $result = concat($result, Success(new FunctionDeclarationResult($node->name)));
@@ -305,6 +321,9 @@ function funcCall($state, FuncCall $node, $code)
     }
     if (isset($node->name->parts)) {
         $functionName = "\\" . ltrim(implode("\\", $node->name->parts), "\\");
+        if (!function_exists($functionName)) {
+            trigger_error("Call to undefined function " . ltrim($functionName,"\\") . "() in console", E_USER_WARNING);
+        }
         return call_user_func_array($functionName, array_map(function ($e) use ($state, $code) {
             return $e;
         }, args($state, $node->args, $code)));

@@ -72,7 +72,7 @@ function getVariableValue($state, $variableName)
      */
     $map = variableLens()->get($state);
     if (!$map->offsetExists($variableName)) {
-        throw new \ErrorException("Undefined variable: $variableName in phunkie console", E_USER_NOTICE);
+        trigger_error("Undefined variable: $variableName in console", E_USER_NOTICE);
     }
     return $map->get($variableName)->get();
 }
