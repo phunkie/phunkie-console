@@ -3,8 +3,20 @@
 namespace PhunkieConsole\Repl;
 
 use ErrorException;
-use function Phunkie\Functions\monad\mcompose;
-use function Phunkie\Functions\state\gets;
+use Throwable;
+
+use Phunkie\Cats\IO;
+use Phunkie\Cats\State;
+use Phunkie\Types\ImmList;
+use Phunkie\Types\Pair;
+
+use function \Phunkie\PatternMatching\Referenced\Success as Valid;
+use function \Phunkie\PatternMatching\Referenced\Failure as Invalid;
+
+use PhunkieConsole\Result\NoResult;
+use PhunkieConsole\Result\Result;
+
+use function Phunkie\Functions\state\put;
 use function Phunkie\Functions\tuple\assign;
 use function PhunkieConsole\Block\Block;
 use function PhunkieConsole\Block\isBlock;
@@ -12,29 +24,16 @@ use function PhunkieConsole\Command\Command;
 use function PhunkieConsole\Command\isCommand;
 use function PhunkieConsole\IO\Lens\updateBlock;
 use function PhunkieConsole\IO\Lens\updatePrompt;
-use PhunkieConsole\Result\NoResult;
-use PhunkieConsole\Result\Result;
-
-use Phunkie\Cats\State;
-use Phunkie\Types\ImmList;
-use Phunkie\Types\Pair;
-use Phunkie\Cats\IO as IOUnit;
-
 use function PhunkieConsole\IO\Lens\config;
 use function PhunkieConsole\IO\Lens\promptLens;
 use function PhunkieConsole\IO\PrintNothing;
 use function PhunkieConsole\IO\ReadLine;
 use function PhunkieConsole\IO\PrintLn;
 use function PhunkieConsole\Parser\parse;
-
-use function \Phunkie\PatternMatching\Referenced\Success as Valid;
-use function \Phunkie\PatternMatching\Referenced\Failure as Invalid;
+use function PhunkieConsole\IO\Colours\colours as format;
 
 use const PhunkieConsole\PhpCompiler\compile;
 use const PhunkieConsole\IO\Colours\colours;
-use function PhunkieConsole\IO\Colours\colours as format;
-
-use Throwable;
 
 const repl = "PhunkieConsole\\Repl\\repl";
 const read = "PhunkieConsole\\Repl\\read";
@@ -44,11 +43,15 @@ const loop = "PhunkieConsole\\Repl\\loop";
 
 function repl($state)
 {
-    return read()->
-        flatMap(evaluate)->
-        flatMap(andPrint)->
-        flatMap(loop)
-            ->run($state);
+    while(1) {
+        (assign($state, $_)) (
+            read($state)->
+                flatMap(evaluate)->
+                flatMap(andPrint)->
+                flatMap(loop)
+                    ->run($state)
+        );
+    }
 }
 
 function read($s = None): State
@@ -65,7 +68,7 @@ function evaluate($input): State
         try { switch(true) {
             case isCommand($input) : return Command($input)->run($state);
             case isBlock($input, $state) : return Block($input)->run($state);
-            default :return parse($input)->flatMap(compile)->run($state); }
+            default : return parse($input)->flatMap(compile)->run($state); }
         } catch (\Throwable $e) {
             return Pair($state, Nel(Failure($e)));
         }
@@ -79,17 +82,18 @@ function andPrint($result): State
     });
 }
 
-function loop(): State
+function loop($state): State
 {
-    return gets(repl);
+    return put($state);
 }
 
 function printResult($state, ImmList $resultList): Pair
 {
     /** @var Result $result */
     /** @var Throwable $e */
-    $result = $e = null;
-    $resultList->map(function($resultToPrint) use (&$state, $result, $e) {
+    /** @var IO $io */
+    $result = $e = $io = null;
+    $resultList->map(function($resultToPrint) use (&$state, $result, $e, $io) {
         $on = match($resultToPrint);
         switch (true) {
             case $on(Valid($result)):

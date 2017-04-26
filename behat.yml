@@ -2,8 +2,17 @@ default:
   suites:
     single_line:
       contexts: [ SingleLineContext ]
-      filters:  { role: "single line runner"  }
+      filters:
+        role: "single line runner"
+        tags: "~memory"
     repl:
       contexts: [ ReplContext ]
-      filters:  { role: "Repl runner"  }
+      filters:
+        role: "Repl runner"
+        tags: "~memory"
+    memory:
+      contexts: [ ReplContext ]
+      filters:
+        tags: "memory"
+        role: "Repl runner"
 

@@ -141,4 +141,22 @@ class ReplContext implements Context
             throw $this->expectationMismatch($result);
         }
     }
+
+    /**
+     * @When I press enter :arg1 times
+     */
+    public function iPressEnterTimes($times)
+    {
+        while($times-- > 0) {
+            $this->iPressEnter();
+        }
+    }
+
+    /**
+     * @Then I still see no errors
+     */
+    public function iStillSeeNoErrors()
+    {
+
+    }
 }
