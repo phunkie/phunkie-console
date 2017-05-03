@@ -8,6 +8,9 @@ use function Phunkie\Functions\immlist\concat;
 use function Phunkie\Functions\lens\makeLenses;
 use Phunkie\Types\ImmMap;
 use Phunkie\Types\Pair;
+use Phunkie\Utils\Trampoline\Done;
+use Phunkie\Utils\Trampoline\More;
+use Phunkie\Utils\Trampoline\Trampoline;
 use function PhunkieConsole\IO\Lens\getBlock;
 use function PhunkieConsole\IO\Lens\updateBlock;
 use function PhunkieConsole\IO\Lens\updatePrompt;
@@ -63,12 +66,17 @@ function stripString(string $code): string
 const stripStringHex = "\\PhunkieConsole\\Block\\stripStringHex";
 function stripStringHex(string $code): string
 {
-    if (preg_match('/<<<(\w+)/', $code, $matches)) {
-        $start = strpos($code, "<<<");
-        $end = strpos(substr($code, strpos($code, $matches[1]) + 1), $matches[1]) + strpos($code, $matches[1]) + 1;
-        return stripStringHex(str_replace(substr($code, $start, $end - $start), "", $code));
-    }
-    return $code;
+    $loop = function(string $code) use (&$loop) : Trampoline {
+        if (preg_match('/<<<(\w+)/', $code, $matches)) {
+            $start = strpos($code, "<<<");
+            $end = strpos(substr($code, strpos($code, $matches[1]) + 1), $matches[1]) + strpos($code, $matches[1]) + 1;
+            return new More(function() use ($code, $start, $end, $loop) {
+                return $loop(str_replace(substr($code, $start, $end - $start), "", $code));
+            });
+        }
+        return new Done($code);
+    };
+    return $loop($code)->run();
 }
 
 const checkBlockOccurrences = "\\PhunkieConsole\\Block\\checkBlockOccurrences";
