@@ -2,6 +2,7 @@
 
 namespace PhunkieConsole\PhpCompiler;
 
+use PhpParser\Node\Arg;
 use PhpParser\Node\Expr\ArrayDimFetch;
 use Phunkie\Cats\State;
 use function Phunkie\Functions\immlist\concat;
@@ -71,7 +72,10 @@ function doCompile($state, $nodes, $code): Pair
 
             // Printable results
             case $node instanceof Echo_:
-                $result = concat($result, Success(new PrintableResult(Pair("echo", value($state, $node->exprs[0], $code)))));
+                $result = concat($result, Success(new PrintableResult(Pair("echo",
+                    implode('', array_map(function($expr) use ($state, $code) {
+                        return value($state, $expr, $code);
+                    }, $node->exprs))))));
                 break;
             case $node instanceof Print_:
                 $result = concat($result, Success(new PrintableResult(Pair("print", value($state, $node->expr, $code)))));
@@ -334,6 +338,31 @@ function funcCall($state, FuncCall $node, $code)
     }
 }
 
+function args($state, $args, $code): array
+{
+    $arguments = [];
+    foreach ($args as $argument) {
+        $xs = arg($state, $argument, $code);
+        if (isVariadic($argument, $code)) {
+            $arguments = array_merge($arguments, $xs);
+            continue;
+        }
+        $arguments[] = $xs;
+    }
+
+    return $arguments;
+}
+
+function arg($state, $argument, $code)
+{
+    return value($state, $argument->value, $code);
+}
+
+function isVariadic(Arg $argument, $code)
+{
+    return strpos(substr($code, $argument->getAttribute('startFilePos')), '...') === 0;
+}
+
 function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $someLongAndReservedPhunkieConsoleNode, string $someLongAndReservedPhunkieConsoleCode): Pair
 {
     $someLongAndReservedPhunkieConsoleLocalVariable = null;
@@ -453,19 +482,4 @@ function generateVarName($state)
 function className($parts)
 {
     return implode("\\", $parts);
-}
-
-function args($state, $args, $code)
-{
-    $arguments = [];
-    foreach ($args as $argument) {
-        $xs = value($state, $argument->value, $code);
-        if (strpos(substr($code, $argument->getAttribute('startFilePos')), '...') === 0) {
-            $arguments = array_merge($arguments, $xs);
-            continue;
-        }
-        $arguments[] = $xs;
-    }
-
-    return $arguments;
 }
