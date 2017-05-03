@@ -133,7 +133,7 @@ function printError(Throwable $e, $state): Pair
         }
     }
     if ($e instanceof \PhpParser\Error) {
-        return Pair ($state, PrintLn(format()['bold']("Parse error") . ": " . format()['boldRed']($e->getMessage())));
+        return Pair ($state, PrintLn(format()['bold']("ParseError") . ": " . format()['boldRed']($e->getMessage())));
     }
     return Pair ($state, PrintLn(format()['bold'](get_class($e)) . ": " . format()['boldRed']($e->getMessage())));
 }
