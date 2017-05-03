@@ -18,7 +18,7 @@ class ParserAdapter
         $nodes = $this->adaptee->parse("<?php $code; ?>");
 
         if (!is_array($nodes)) {
-            throw(new \ParseError("syntax error, could not parse '$code'"));
+            throw(new \ParseError("Syntax error, could not parse '$code'"));
         }
 
         return $nodes;
