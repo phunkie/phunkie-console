@@ -3,6 +3,8 @@
 namespace PhunkieConsole\Repl;
 
 use ErrorException;
+use Phunkie\Utils\Trampoline\More;
+use Phunkie\Utils\Trampoline\Trampoline;
 use Throwable;
 
 use Phunkie\Cats\IO;
@@ -41,17 +43,17 @@ const evaluate = "PhunkieConsole\\Repl\\evaluate";
 const andPrint = "PhunkieConsole\\Repl\\andPrint";
 const loop = "PhunkieConsole\\Repl\\loop";
 
-function repl($state)
+function repl($state): Trampoline
 {
-    while(1) {
-        (assign($state, $_)) (
-            read($state)->
-                flatMap(evaluate)->
-                flatMap(andPrint)->
-                flatMap(loop)
-                    ->run($state)
-        );
-    }
+
+    (assign($state, $_)) (
+        read($state)->
+            flatMap(evaluate)->
+            flatMap(andPrint)->
+            flatMap(loop)
+                ->run($state)
+    );
+    return new More(function() use ($state) { return repl($state); });
 }
 
 function read($s = None): State

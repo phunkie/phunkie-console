@@ -30,7 +30,7 @@ function mode(int $argc, array $argv) { switch (true)
 
 function run($argc, $argv, $state) { switch (mode($argc, $argv))
 {
-    case Interactive: welcome(config($state, "formatter")->getOrElse(colours)); repl($state); break;
+    case Interactive: welcome(config($state, "formatter")->getOrElse(colours)); repl($state)->run(); break;
     case Help: help(); break;
     case File: fromFile($argv[$argc - 1]); break;
     case SingleLine: evaluate(getopt("r:")["r"])->flatMap(andPrint)->run($state); break; }
