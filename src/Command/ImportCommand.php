@@ -88,7 +88,38 @@ class ImportCommand
 
     private function evalFunction(string $function, string $namespace)
     {
-        eval ("function $function(...\$args) { return call_user_func_array('\\$namespace\\$function', \$args); }");
+        $reflection = new \ReflectionFunction("\\$namespace\\$function");
+        $args = [];
+        $justArgs = [];
+        foreach ($reflection->getParameters() as $argument) {
+            $arg = '';
+            if ($argument->isVariadic()) {
+                $arg = $argument->getType() . ' ...$' . $argument->getName();
+            } elseif ($argument->isPassedByReference()) {
+                $arg = $argument->getType() . ' &$' . $argument->getName();
+            } else {
+                $arg = $argument->getType() . ' $' . $argument->getName();
+            }
+            $argTypeAndVar = explode(' ', str_replace('&', '', $arg));
+            $justArgs[] = end($argTypeAndVar);
+
+            if ($argument->isOptional() && $argument->isDefaultValueAvailable()) {
+                $defaultValue = $argument->getDefaultValue();
+                switch (true) {
+                    case $defaultValue === true: $defaultValue = 'true'; break;
+                    case $defaultValue === null: $defaultValue = 'null'; break;
+                    case $defaultValue == None(): $defaultValue = 'None()'; break;
+                    case $defaultValue === false: $defaultValue = 'false'; break;
+                }
+                $arg .= ' = ' . $defaultValue;
+            }
+
+            $args[] = $arg;
+        }
+
+        eval ("function $function(" . implode(", ", $args) . ") {
+            return \\$namespace\\$function(" . implode(', ', $justArgs) . ");
+        }");
         eval ("const $function = '\\$namespace\\$function';");
     }
 
