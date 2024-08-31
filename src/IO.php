@@ -10,7 +10,8 @@ use Phunkie\Cats\IO as IOString;
 function ReadLine($prompt): IOString
 {
     return io(function () use ($prompt) {
-        $input = \readline($prompt);
+        echo $prompt;
+        $input = \readline("");
         if (!empty($input)) {
             readline_add_history($input);
         }
