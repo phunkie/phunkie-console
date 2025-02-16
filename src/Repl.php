@@ -102,7 +102,7 @@ function printResult($state, ImmList $resultList): Pair
                 PrintNothing()->run() :
                 PrintLn($result->output(config($state, "formatter")->getOrElse(colours)))->run(),
             pmatch($resultToPrint)(Invalid($e)) =>
-                print_r($e->getMessage()),
+                print_r($e->getMessage() . ":" . $e->getLine()),
                 // ($f = fn() => (assign($state, $io))(printError($e, $state))() && $io->run())()
         }
     );

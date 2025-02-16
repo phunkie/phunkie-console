@@ -70,7 +70,7 @@ class ReplContext implements Context
         $stateAndResult = evaluate($this->input)->run($this->state);
         $this->state = $stateAndResult->_1;
         $this->result = $stateAndResult->_2->map(function($validation) {
-            $on = match($validation);
+            $on = pmatch($validation);
             switch (true) {
                 case $on(Valid($a)): return $a->output(noColours);
                 case $on(Invalid($a)): return $a->output(noColours);

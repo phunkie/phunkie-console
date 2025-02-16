@@ -40,7 +40,7 @@ use PhpParser\Node\Scalar\String_;
 
 use PhpParser\Node\Expr\Array_;
 use PhpParser\Node\Expr\ConstFetch;
-
+use PhpParser\Node\Expr\BinaryOp;
 use PhpParser\Node\Expr\Exit_;
 use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\Print_;
@@ -67,9 +67,16 @@ function compile($statements): State
 
 function doCompile($state, $nodes, $code): Pair
 {
+    // echo "Nodes: " . print_r($nodes, true) . "\n";
     $result = Nil();
     foreach ($nodes as $node) {
+        if ($node instanceof Expr) {
+            if (!$node instanceof BinaryOp) {
+                $node = $node?->expr;
+            }
+        }
         $nodeType = match(true) {
+            $node instanceof BinaryOp => 'binary_op',
             $node instanceof Nop => 'nop',
             $node instanceof Echo_ => 'echo',
             $node instanceof Print_ => 'print',
@@ -90,6 +97,10 @@ function doCompile($state, $nodes, $code): Pair
         };
 
         $result = match($nodeType) {
+            'binary_op' => (function()use(&$state, $code, $node, $result){
+                $binaryOp = binaryOp($state, $code, $node->getOperatorSigil(), $node->left, $node->right);
+                return concat($result, Success(new VariableAssignmentResult(Pair(generateVarName($state), $binaryOp))));
+            })(),
             'nop' => $result,
                 
             'echo' => concat($result, Success(new PrintableResult(Pair("echo",
@@ -112,7 +123,7 @@ function doCompile($state, $nodes, $code): Pair
                 return concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
             })(),
                 
-            'assign' => (function() use ($state, $node, $code, $result) {
+            'assign' => (function() use (&$state, $node, $code, $result) {
                 $state = updateVariable(name($node->var), value($state, $node->expr, $code))->run($state);
                 return concat($result, Success(new VariableAssignmentResult(Pair(name($node->var),
                     value($state, $node->expr, $code)))));
@@ -164,16 +175,16 @@ function doCompile($state, $nodes, $code): Pair
                 
             'const_fetch' => (function() use ($state, $node, $result) {
                 $undefinedConstantHandler = function() use ($node) {
-                    trigger_error("Use of undefined constant {$node->name->parts[0]}", E_USER_NOTICE);
-                    return $node->name->parts[0];
+                    trigger_error("Use of undefined constant {$node->name->name}", E_USER_NOTICE);
+                    return $node->name->name;
                 };
                 
                 $constant = match(true) {
-                    $node->name->parts[0] === "true" => true,
-                    $node->name->parts[0] === "false" => false,
-                    $node->name->parts[0] === "null" => null,
-                    !defined($node->name->parts[0]) => $undefinedConstantHandler(),
-                    default => constant($node->name->parts[0])
+                    $node->name->name === "true" => true,
+                    $node->name->name === "false" => false,
+                    $node->name->name === "null" => null,
+                    !defined($node->name->name) => $undefinedConstantHandler(),
+                    default => constant($node->name->name)
                 };
                 return concat($result, Success(new VariableAssignmentResult(Pair(generateVarName($state), $constant))));
             })(),
@@ -200,7 +211,7 @@ function doCompile($state, $nodes, $code): Pair
 
 function nodeIsNull(Node $node): bool
 {
-    return ($node instanceof ConstFetch && strtolower($node->name->parts[0]) == "null");
+    return ($node instanceof ConstFetch && strtolower($node->name->name) == "null");
 }
 
 function value($state, $node, $code)
@@ -211,13 +222,13 @@ function value($state, $node, $code)
 
         case $node instanceof ConstFetch:
             switch(true) {
-                case $node->name->parts[0] === "true": return true;
-                case $node->name->parts[0] === "false": return false;
-                case $node->name->parts[0] === "null": return null;
-                case !defined($node->name->parts[0]):
+                case $node->name->name === "true": return true;
+                case $node->name->name === "false": return false;
+                case $node->name->name === "null": return null;
+                case !defined($node->name->name):
                     trigger_error("Use of undefined constant {$node->name->parts[0]}", E_NOTICE);
-                    return $node->name->parts[0];
-                default: return eval("return {$node->name->parts[0]};");
+                    return $node->name->name;
+                default: return eval("return {$node->name->name};");
             }
             break;
         case $node instanceof Array_:
@@ -235,7 +246,7 @@ function value($state, $node, $code)
         case $node instanceof String_:
             return $node->value;
         case $node instanceof New_:
-            $className = className($node->class->parts);
+            $className = $node->class->name;
             $args = args($state, $node->args, $code);
             return new $className(...$args);
         case $node instanceof Variable:
@@ -265,6 +276,55 @@ function expr($someLongAndReservedPhunkieConsoleState, Node $someLongAndReserved
             $someLongAndReservedPhunkieConsoleNode->getAttribute("startFilePos") + 1) . ";"
     );
     return $someLongAndReservedPhunkieConsoleLocalVariable;
+}
+
+function binaryOp($state, $code, $operation, $left, $right)
+{
+    if ($left instanceof BinaryOp) {
+        $left = binaryOp($state, $code, $left->getOperatorSigil(), $left->left, $left->right);
+    } else {
+        $left = $left->value;
+    }
+
+    if ($right instanceof BinaryOp) {
+        $right = binaryOp($state, $code, $right->getOperatorSigil(), $right->left, $right->right);
+    } else {
+        $right = $right->value;
+    }
+
+    $value = match($operation) {
+        '+' => $left + $right,
+        '-' => $left - $right,
+        '*' => $left * $right,
+        '/' => $left / $right,
+        '%' => $left % $right,
+        '**' => $left ** $right,
+        '||' => $left || $right,
+        '&&' => $left && $right,
+        '??' => $left ?? $right,
+        '==' => $left == $right,
+        '!=' => $left != $right,
+        '===' => $left === $right,
+        '!==' => $left !== $right,
+        '<' => $left < $right,
+        '<=' => $left <= $right,
+        '>' => $left > $right,
+        '>=' => $left >= $right,
+        '<<' => $left << $right,
+        '>>' => $left >> $right,
+        '&' => $left & $right,
+        '|' => $left | $right,
+        '^' => $left ^ $right,
+        'xor' => $left xor $right,
+        'or' => $left or $right,
+        'and' => $left and $right,
+        '<=>' => $left <=> $right,  
+        '.' => $left . $right,
+
+        default => throw new \Exception("Unknown operator: " . $operation)
+    };
+    
+    return $value;
 }
 
 function propertyFetch($state, $code, $statement)
@@ -454,15 +514,14 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
     }
 
     if (!is_null($someLongAndReservedPhunkieConsoleLocalVariable)) {
-        $varName = generateVarName($someLongAndReservedPhunkieConsoleState);
-        $someLongAndReservedPhunkieConsoleState = updateVariable($varName, $someLongAndReservedPhunkieConsoleLocalVariable)->run($someLongAndReservedPhunkieConsoleState);
+        if (!($someLongAndReservedPhunkieConsoleNode?->expr instanceof Assign)) {
+            $varName = generateVarName($someLongAndReservedPhunkieConsoleState);
+            $someLongAndReservedPhunkieConsoleState = updateVariable($varName, $someLongAndReservedPhunkieConsoleLocalVariable)->run($someLongAndReservedPhunkieConsoleState);
 
-        $vars = variableLens()->get($someLongAndReservedPhunkieConsoleState);
-        $keys = $vars->keys();
-
-        $someLongAndReservedPhunkieConsoleResult = concat(
-                $someLongAndReservedPhunkieConsoleResult,
-                Success(new VariableAssignmentResult(Pair($varName, $someLongAndReservedPhunkieConsoleLocalVariable))));
+            $someLongAndReservedPhunkieConsoleResult = concat(
+                    $someLongAndReservedPhunkieConsoleResult,
+                    Success(new VariableAssignmentResult(Pair($varName, $someLongAndReservedPhunkieConsoleLocalVariable))));
+        }
     }
 
     return Pair($someLongAndReservedPhunkieConsoleState, $someLongAndReservedPhunkieConsoleResult);
@@ -490,9 +549,4 @@ function generateVarName($state)
     $next = $nextAvailable($numbers)->run();
     
     return 'var' . $next;
-}
-
-function className($parts)
-{
-    return implode("\\", $parts);
 }
