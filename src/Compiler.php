@@ -9,6 +9,9 @@ use function Phunkie\Functions\immlist\concat;
 use function Phunkie\PatternMatching\Referenced\ListWithTail;
 use function Phunkie\PatternMatching\Referenced\ListNoTail;
 use Phunkie\Types\ImmMap;
+use Phunkie\Types\ImmList;
+use Phunkie\Types\Nil;
+use Phunkie\Types\Cons;
 use Phunkie\Types\Pair;
 use Phunkie\Types\Unit;
 use Phunkie\Utils\Trampoline\Done;
@@ -24,7 +27,8 @@ use PhunkieConsole\Result\PrintableResult;
 
 use PhunkieConsole\Result\VariableAssignmentResult;
 use PhpParser\Node;
-use PhpParser\Node\Expr;
+// use PhpParser\Node\Expr;
+use PhpParser\Node\Stmt\Expression as Expr;
 use PhpParser\Node\Expr\Assign;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
@@ -65,129 +69,131 @@ function doCompile($state, $nodes, $code): Pair
 {
     $result = Nil();
     foreach ($nodes as $node) {
-        switch (true) {
-            // Comments
-            case $node instanceof Nop:
-                continue;
+        $nodeType = match(true) {
+            $node instanceof Nop => 'nop',
+            $node instanceof Echo_ => 'echo',
+            $node instanceof Print_ => 'print',
+            $node instanceof Exit_ => 'exit',
+            $node instanceof FuncCall && isset($node->name->parts) && 
+                in_array($node->name->parts[0], ['var_dump', 'print_r', 'var_export']) => 'debug_func',
+            $node instanceof FuncCall => 'func_call',
+            $node instanceof Assign => 'assign',
+            $node instanceof Variable => 'variable',
+            $node instanceof MethodCall => 'method_call',
+            $node instanceof Class_ => 'class',
+            $node instanceof Function_ => 'function',
+            $node instanceof PropertyFetch => 'property_fetch',
+            $node instanceof ConstFetch => 'const_fetch',
+            $node instanceof Stmt => 'stmt',
+            $node instanceof Expr && !nodeIsNull($node) => 'expr',
+            default => 'default'
+        };
 
-            // Printable results
-            case $node instanceof Echo_:
-                $result = concat($result, Success(new PrintableResult(Pair("echo",
-                    implode('', array_map(function($expr) use ($state, $code) {
-                        return value($state, $expr, $code);
-                    }, $node->exprs))))));
-                break;
-            case $node instanceof Print_:
-                $result = concat($result, Success(new PrintableResult(Pair("print", value($state, $node->expr, $code)))));
-                break;
-            case $node instanceof Exit_:
-                $result = concat($result, Success(new PrintableResult(Pair("die", value($state, $node->expr, $code)))));
-                break;
-            case $node instanceof FuncCall && isset($node->name->parts) && in_array($node->name->parts[0],
-                    ['var_dump', 'print_r', 'var_export']):
-                $result = concat($result, Success(new PrintableResult(Pair($node->name->parts[0],
-                    value($state, $node->args[0]->value, $code)))));
-                break;
-
-            case $node instanceof FuncCall:
+        $result = match($nodeType) {
+            'nop' => $result,
+                
+            'echo' => concat($result, Success(new PrintableResult(Pair("echo",
+                    implode('', array_map(fn($expr) => value($state, $expr, $code), $node->exprs)))))),
+                
+            'print' => concat($result, Success(new PrintableResult(Pair("print", value($state, $node->expr, $code))))),
+                
+            'exit' => concat($result, Success(new PrintableResult(Pair("die", value($state, $node->expr, $code))))),
+                
+            'debug_func' => concat($result, Success(new PrintableResult(Pair($node->name->parts[0],
+                    value($state, $node->args[0]->value, $code))))),
+                
+            'func_call' => (function() use ($state, $node, $code, $result) {
                 $funcCallResult = funcCall($state, $node, $code);
                 $varName = '';
                 if (!$funcCallResult instanceof Unit) {
                     $varName = generateVarName($state);
                     $state = updateVariable($varName, $funcCallResult)->run($state);
                 }
-                $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
-                break;
-
-            // Assignment
-            case $node instanceof Assign:
+                return concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
+            })(),
+                
+            'assign' => (function() use ($state, $node, $code, $result) {
                 $state = updateVariable(name($node->var), value($state, $node->expr, $code))->run($state);
-                $result = concat($result, Success(new VariableAssignmentResult(Pair(name($node->var),
+                return concat($result, Success(new VariableAssignmentResult(Pair(name($node->var),
                     value($state, $node->expr, $code)))));
-                break;
-
-            // Variables
-            case $node instanceof Variable:
+            })(),
+                
+            'variable' => (function() use ($state, $node, $result) {
                 $variable = variable($state, $node);
                 $state = updateVariable($variable->_1, $variable->_2)->run($state);
-                $result = concat($result, Success(new VariableAssignmentResult($variable)));
-                break;
-
-            // Method call
-            case $node instanceof MethodCall:
+                return concat($result, Success(new VariableAssignmentResult($variable)));
+            })(),
+                
+            'method_call' => (function() use ($state, $code, $node, $result) {
                 $methodCallResult = methodCall($state, $code, $node);
                 $varName = '';
                 if (!$methodCallResult instanceof Unit) {
                     $varName = generateVarName($state);
                     $state = updateVariable($varName, $methodCallResult)->run($state);
                 }
-                $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $methodCallResult))));
-                break;
-
-            // Class declaration
-            case $node instanceof Class_:
+                return concat($result, Success(new VariableAssignmentResult(Pair($varName, $methodCallResult))));
+            })(),
+                
+            'class' => (function() use ($node, $code, $result) {
                 if (class_exists($node->name)) {
                     trigger_error("Cannot declare class {$node->name}, because the name is already in use in console", E_USER_ERROR);
                 }
                 eval(substr($code, $node->getAttribute("startFilePos"),
                     $node->getAttribute("endFilePos") - 5));
-                $result = concat($result, Success(new ClassDeclarationResult($node->name)));
-                break;
-
-            // Function declaration
-            case $node instanceof Function_:
+                return concat($result, Success(new ClassDeclarationResult($node->name)));
+            })(),
+                
+            'function' => (function() use ($node, $code, $result) {
                 if (function_exists($node->name)) {
                     trigger_error("Cannot redeclare " . ltrim($node->name,"\\") . "() (previously declared in console)", E_USER_ERROR);
                 }
                 eval(substr($code, $node->getAttribute("startFilePos"),
                     $node->getAttribute("endFilePos") + 1));
-                $result = concat($result, Success(new FunctionDeclarationResult($node->name)));
-                break;
-
-            // Property fetch
-            case $node instanceof PropertyFetch:
+                return concat($result, Success(new FunctionDeclarationResult($node->name)));
+            })(),
+                
+            'property_fetch' => (function() use ($state, $code, $node, $result) {
                 $funcCallResult = propertyFetch($state, $code, $node);
                 $varName = '';
                 if (!$funcCallResult instanceof Unit) {
                     $varName = generateVarName($state);
                     $state = updateVariable($varName, $funcCallResult)->run($state);
                 }
-                $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
-                break;
-
-            //Constant
-            case $node instanceof ConstFetch:
-                $constant = null;
-                switch(true) {
-                    case $node->name->parts[0] === "true": $constant = true; break;
-                    case $node->name->parts[0] === "false": $constant = false; break;
-                    case $node->name->parts[0] === "null": $constant = null; break;
-                    case !defined($node->name->parts[0]):
-                        trigger_error("Use of undefined constant {$node->name->parts[0]}", E_USER_NOTICE);
-                        $constant = $node->name->parts[0]; break;
-                    default: $constant = constant($node->name->parts[0]);
-                }
-                $result = concat($result, Success(new VariableAssignmentResult(Pair(generateVarName($state), $constant))));
-                break;
-
-            // Stmt
-            case $node instanceof Stmt:
-            case $node instanceof Expr && !nodeIsNull($node):
+                return concat($result, Success(new VariableAssignmentResult(Pair($varName, $funcCallResult))));
+            })(),
+                
+            'const_fetch' => (function() use ($state, $node, $result) {
+                $undefinedConstantHandler = function() use ($node) {
+                    trigger_error("Use of undefined constant {$node->name->parts[0]}", E_USER_NOTICE);
+                    return $node->name->parts[0];
+                };
+                
+                $constant = match(true) {
+                    $node->name->parts[0] === "true" => true,
+                    $node->name->parts[0] === "false" => false,
+                    $node->name->parts[0] === "null" => null,
+                    !defined($node->name->parts[0]) => $undefinedConstantHandler(),
+                    default => constant($node->name->parts[0])
+                };
+                return concat($result, Success(new VariableAssignmentResult(Pair(generateVarName($state), $constant))));
+            })(),
+                
+            'stmt', 'expr' => (function() use (&$state, $node, $code, $result) {
                 $stmt = evaluateNode($state, $node, $code);
                 $state = $stmt->_1;
-                $result = concat($result, $stmt->_2);
-                break;
-
-            default:
+                return concat($result, $stmt->_2);
+            })(),
+                
+            'default' => (function() use ($state, $node, $code, $result) {
                 $value = value($state, $node, $code);
                 $varName = '';
                 if (!$value instanceof Unit) {
                     $varName = generateVarName($state);
                     $state = updateVariable($varName, $value)->run($state);
                 }
-                $result = concat($result, Success(new VariableAssignmentResult(Pair($varName, $value))));
-                break;
-        }
+                return concat($result, Success(new VariableAssignmentResult(Pair($varName, $value))));
+            })()
+        };
     }
     return Pair($state, $result);
 }
@@ -451,6 +457,9 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
         $varName = generateVarName($someLongAndReservedPhunkieConsoleState);
         $someLongAndReservedPhunkieConsoleState = updateVariable($varName, $someLongAndReservedPhunkieConsoleLocalVariable)->run($someLongAndReservedPhunkieConsoleState);
 
+        $vars = variableLens()->get($someLongAndReservedPhunkieConsoleState);
+        $keys = $vars->keys();
+
         $someLongAndReservedPhunkieConsoleResult = concat(
                 $someLongAndReservedPhunkieConsoleResult,
                 Success(new VariableAssignmentResult(Pair($varName, $someLongAndReservedPhunkieConsoleLocalVariable))));
@@ -461,21 +470,25 @@ function evaluateNode(ImmMap $someLongAndReservedPhunkieConsoleState, Node $some
 
 function generateVarName($state)
 {
-    $nextAvailable = function ($numbers) use (&$nextAvailable): Trampoline { $on = match($numbers); switch(true) {
-        case $on(Nil): return new Done(0);
-        case $on(ListNoTail($head, Nil)): return new Done($head + 1);
-        case $on(ListWithTail($head, $tail)) && $head == ($tail->head - 1):
-            return new More(function() use ($nextAvailable, $tail) { return $nextAvailable($tail); });
-        case $on(_): return new Done($numbers->head + 1); }
+    $nextAvailable = function ($numbers) use (&$nextAvailable) {
+        return match (true) {
+            $numbers->length === 0 => new Done(0),
+            $numbers->length === 1 => new Done($numbers->head + 1),
+            $numbers->length > 1 && $numbers->head == ($numbers->tail->head - 1) => new More(fn() => $nextAvailable($numbers->tail)),
+            $numbers instanceof ImmList => new Done($numbers->head + 1),
+            default => throw new \InvalidArgumentException("Invalid input". print_r($numbers, true))
+        };
     };
-    $next = $nextAvailable(ImmList(...variableLens()->get($state)->keys())
-        ->filter(function ($varName) {
-            return preg_match("/var(\d+)/", $varName);
-        })
-        ->map(function ($varName) {
-            return (int)substr($varName, 3);
-        })
-    )->run();
+
+    $vars = variableLens()->get($state);
+    $keys = $vars->keys();
+
+    $numbers = ImmList(...$vars->keys())
+        ->filter(fn ($varName) => preg_match("/var(\d+)/", $varName))
+        ->map(fn ($varName) => (int)substr($varName, 3));
+    
+    $next = $nextAvailable($numbers)->run();
+    
     return 'var' . $next;
 }
 

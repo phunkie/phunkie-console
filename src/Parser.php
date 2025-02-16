@@ -7,6 +7,7 @@ use function PhunkieConsole\IO\Lens\parserLens;
 use PhunkieConsole\Parser\Adapter\PhpParser\ParserAdapter;
 use PhpParser\Lexer\Emulative;
 use PhpParser\ParserFactory;
+use PhpParser\Lexer\PhpVersion;
 
 const phpParser = "\\PhunkieConsole\\Parser\\phpParser";
 
@@ -22,9 +23,11 @@ function parse($code): State
 
 function phpParser()
 {
-    $lexer = new Emulative(array('usedAttributes' => array(
-        'startLine', 'endLine', 'startFilePos', 'endFilePos', 'comments'
-    )));
-    $parser = (new ParserFactory)->create(ParserFactory::PREFER_PHP7, $lexer);
+    $lexer = new Emulative(null, [
+        'usedAttributes' => [
+            'startLine', 'endLine', 'startFilePos', 'endFilePos', 'comments'
+        ]
+    ]);
+    $parser = (new ParserFactory)->createForHostVersion();
     return new ParserAdapter($parser);
 }

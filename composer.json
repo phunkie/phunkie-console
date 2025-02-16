@@ -9,13 +9,14 @@
     }
   ],
   "require": {
-    "phunkie/phunkie": "~0.6",
-    "nikic/php-parser": "~2.1"
+    "php": "^8.0",
+    "phunkie/phunkie": "^0.11.5",
+    "nikic/php-parser": "^5.0"
   },
   "require-dev": {
-    "phpspec/phpspec": "~3.0",
-    "bossa/phpspec2-expect": "~2.0",
-    "behat/behat": "^3.2"
+    "phpspec/phpspec": "^7.0",
+    "friends-of-phpspec/phpspec-expect": "^4.0",
+    "behat/behat": "^3.12"
   },
   "autoload": {
     "psr-4": {

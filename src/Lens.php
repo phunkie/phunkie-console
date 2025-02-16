@@ -81,6 +81,7 @@ function updateVariable($var, $value)
 {
     return Function1(function($state) use ($var, $value) {
         $variables = variableLens()->get($state);
+        // echo "Variables: " . print_r($variables, true) . "\n";
 
         if (strpos($var, "[") !== false) {
             $key = substr($var, 0, strpos($var, "["));
@@ -93,7 +94,10 @@ function updateVariable($var, $value)
         }
 
         $variables = member($var)->set($variables, Some($value));
-        return variableLens()->set($state, Some($variables));
+        $result = variableLens()->set($state, Some($variables));
+        // echo "Updated variables: " . print_r($variables, true) . "\n";
+        // echo "Result: " . print_r($result, true) . "\n";
+        return $result;
     });
 }
 

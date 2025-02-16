@@ -45,7 +45,6 @@ const loop = "PhunkieConsole\\Repl\\loop";
 
 function repl($state): Trampoline
 {
-
     (assign($state, $_)) (
         read($state)->
             flatMap(evaluate)->
@@ -95,22 +94,19 @@ function printResult($state, ImmList $resultList): Pair
     /** @var Throwable $e */
     /** @var IO $io */
     $result = $e = $io = null;
-    $resultList->map(function($resultToPrint) use (&$state, $result, $e, $io) {
-        $on = match($resultToPrint);
-        switch (true) {
-            case $on(Valid($result)):
-                if ($result instanceof NoResult) {
-                    PrintNothing()->run();
-                    break;
-                }
-                PrintLn($result->output(config($state, "formatter")->getOrElse(colours)))->run();
-                break;
-            default:
-                $on(Invalid($e));
-                (assign($state, $io))(printError($e, $state));
-                $io->run();
+
+    $resultList->map(fn ($resultToPrint) => 
+        match (true) {
+            pmatch($resultToPrint)(Valid($result)) =>
+                $result instanceof NoResult ?
+                PrintNothing()->run() :
+                PrintLn($result->output(config($state, "formatter")->getOrElse(colours)))->run(),
+            pmatch($resultToPrint)(Invalid($e)) =>
+                print_r($e->getMessage()),
+                // ($f = fn() => (assign($state, $io))(printError($e, $state))() && $io->run())()
         }
-    });
+    );
+
     return Pair($state, $state);
 }
 
