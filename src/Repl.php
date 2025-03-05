@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of PhunkieConsole, a REPL to support your Phunkie development.
+ *
+ * (c) Marcello Duarte <marcello.duarte@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace PhunkieConsole\Repl;
 
 use ErrorException;
@@ -102,8 +111,7 @@ function printResult($state, ImmList $resultList): Pair
                 PrintNothing()->run() :
                 PrintLn($result->output(config($state, "formatter")->getOrElse(colours)))->run(),
             pmatch($resultToPrint)(Invalid($e)) =>
-                print_r($e->getMessage() . ":" . $e->getLine()),
-                // ($f = fn() => (assign($state, $io))(printError($e, $state))() && $io->run())()
+                (fn() => printError($e, $state))()->_2->run()
         }
     );
 

@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of PhunkieConsole, a REPL to support your Phunkie development.
+ *
+ * (c) Marcello Duarte <marcello.duarte@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace PhunkieConsole\IO\Lens;
 
 use Phunkie\Cats\Lens;
@@ -81,8 +90,6 @@ function updateVariable($var, $value)
 {
     return Function1(function($state) use ($var, $value) {
         $variables = variableLens()->get($state);
-        // echo "Variables: " . print_r($variables, true) . "\n";
-
         if (strpos($var, "[") !== false) {
             $key = substr($var, 0, strpos($var, "["));
             if ($variables->contains($key)) {
@@ -95,8 +102,6 @@ function updateVariable($var, $value)
 
         $variables = member($var)->set($variables, Some($value));
         $result = variableLens()->set($state, Some($variables));
-        // echo "Updated variables: " . print_r($variables, true) . "\n";
-        // echo "Result: " . print_r($result, true) . "\n";
         return $result;
     });
 }
