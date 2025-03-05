@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of PhunkieConsole, a REPL to support your Phunkie development.
+ *
+ * (c) Marcello Duarte <marcello.duarte@gmail.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace PhunkieConsole\Command;
 
 use function Phunkie\Functions\immlist\concat;
@@ -32,7 +41,7 @@ class ImportCommand
         return Pair(
             $state,
             $this->import($module === false ? "" : $module)
-                ->map(function($result) { $on = match($result); switch(true) {
+                ->map(function($result) { $on = pmatch($result); switch(true) {
                     case $on(Valid($x)): return Success(new PrintableResult(Pair(None, $x)));
                     case $on(Invalid($x)): return $result;
         }}));
@@ -41,6 +50,11 @@ class ImportCommand
     private function import(string $module): ImmList // <Validation<String, String>>
     {
         $path = explode("/", $module);
+
+        if (count($path) !== 2) {
+            return ImmList($this->failure(Some("Invalid module"), $module));
+        }
+
         $namespace = $function = null;
         (assign($namespace, $function)) (Pair("Phunkie\\Functions\\$path[0]", $path[1]));
         $userFunctions = $this->findAllFunctionsInModule($namespace);
@@ -164,8 +178,10 @@ class ImportCommand
     private function failure(Option $title, string $body)
     {
         return Failure(
-            ($this->formatter)()['boldRed']($title->isEmpty() ? "" : "{$title->get()}: ") .
-            ($this->formatter)()['red']($body)
+            new \Error(
+                ($this->formatter)()['boldRed']($title->isEmpty() ? "" : "{$title->get()}: \n") .
+                ($this->formatter)()['red']($body) . "\n"
+            )
         );
     }
 
