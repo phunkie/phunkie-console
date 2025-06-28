@@ -73,28 +73,32 @@ function compile($statements): State
 function compileNode($state, $node, $code, $result): array
 {
     if ($node instanceof Expr && get_class($node) !== BinaryOp::class) {
-            $node = $node?->expr;
+        $node = $node?->expr;
     }
 
+    $compile = Compiled($state, $node, $code)($result);
+    $compileAndAssign = $compile(variableAssignmentResultFactory());
+    $compileAndPrint = $compile(printableResultFactory());
+    $debugFunctions = ['var_dump', 'print_r', 'var_export'];
+    $isDebugFunctionCall = fn ($n) => isset($n->name->parts[0]) && in_array($n->name->parts[0], $debugFunctions);
+
     return match(true) {
-        $node instanceof BinaryOp => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(binaryOpStrategy()),
+        $node instanceof BinaryOp => $compileAndAssign(binaryOpStrategy()),
         $node instanceof Nop => [$state, $result],
-        $node instanceof Echo_ => Compiled($state, $node, $code)($result)(printableResultFactory())(echoStrategy()),
-        $node instanceof Print_ => Compiled($state, $node, $code)($result)(printableResultFactory())(printStrategy("print")),
-        $node instanceof Exit_ => Compiled($state, $node, $code)($result)(printableResultFactory())(printStrategy("die")),
-        $node instanceof FuncCall && isset($node->name->parts) &&
-            in_array($node->name->parts[0], ['var_dump', 'print_r', 'var_export']) =>
-            Compiled($state, $node, $code)($result)(printableResultFactory())(debugFuncStrategy()),
-        $node instanceof FuncCall =>  Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(funcCallStrategy()),
-        $node instanceof Assign => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(assignStrategy()),
-        $node instanceof Variable => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(variableStrategy()),
-        $node instanceof MethodCall => Compiled($state, $code, $node)($result)(variableAssignmentResultFactory())(methodCallStrategy()),
-        $node instanceof Class_ => Compiled($state, $node, $code)($result)(classDeclarationResultFactory())(classStrategy()),
-        $node instanceof Function_ => Compiled($state, $node, $code)($result)(functionDeclarationResultFactory())(functionStrategy()),
-        $node instanceof PropertyFetch => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(propertyFetchingStrategy()),
-        $node instanceof ConstFetch => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(constantFetchingStrategy()),
-        $node instanceof Const_ => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(constantAssignStrategy()),
-        $node instanceof Stmt, $node instanceof Expr && !nodeIsNull($node) => Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(evaluateExpressionStrategy()),
-        default =>  Compiled($state, $node, $code)($result)(variableAssignmentResultFactory())(defaultExpressionStrategy()),
+        $node instanceof Echo_ =>$compileAndPrint(echoStrategy()),
+        $node instanceof Print_ =>$compileAndPrint(printStrategy("print")),
+        $node instanceof Exit_ =>$compileAndPrint(printStrategy("die")),
+        $node instanceof FuncCall && $isDebugFunctionCall($node) => $compileAndPrint(debugFuncStrategy()),
+        $node instanceof FuncCall =>  $compileAndAssign(funcCallStrategy()),
+        $node instanceof Assign => $compileAndAssign(assignStrategy()),
+        $node instanceof Variable => $compileAndAssign(variableStrategy()),
+        $node instanceof MethodCall => $compileAndAssign(methodCallStrategy()),
+        $node instanceof Class_ => $compile(classDeclarationResultFactory())(classStrategy()),
+        $node instanceof Function_ => $compile(functionDeclarationResultFactory())(functionStrategy()),
+        $node instanceof PropertyFetch => $compileAndAssign(propertyFetchingStrategy()),
+        $node instanceof ConstFetch => $compileAndAssign(constantFetchingStrategy()),
+        $node instanceof Const_ => $compileAndAssign(constantAssignStrategy()),
+        $node instanceof Stmt, $node instanceof Expr && !nodeIsNull($node) => $compileAndAssign(evaluateExpressionStrategy()),
+        default =>  $compileAndAssign(defaultExpressionStrategy()),
     };
 }

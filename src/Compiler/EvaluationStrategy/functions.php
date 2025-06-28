@@ -25,10 +25,9 @@ use function PhunkieConsole\Compiler\variable;
 
 function variableStrategy(): callable
 {
-    return function (&$state, $node, $code) {
+    return function ($state, $node, $code) {
         $variable = variable($state, $node);
-        $state = updateVariable($variable->_1, $variable->_2)->run($state);
-        return [$state, $variable];
+        return [updateVariable($variable->_1, $variable->_2)->run($state), $variable];
     };
 }
 
@@ -76,7 +75,7 @@ function funcCallStrategy(): callable
 
 function assignStrategy(): callable
 {
-    return function (&$state, $node, $code) {
+    return function ($state, $node, $code) {
         $nome = name($node->var);
         $value = value($state, $node->expr, $code);
         $state = updateVariable($nome, $value)->run($state);
